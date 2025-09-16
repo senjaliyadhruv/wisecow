@@ -3,20 +3,24 @@ on:
   push:
     branches:
       - main
+
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout code
       uses: actions/checkout@v3
+      
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v2
+      
     - name: Log in to Google Artifact Registry
       uses: docker/login-action@v2
       with:
         registry: us-central1-docker.pkg.dev
         username: _json_key
         password: ${{ secrets.GCP_SA_KEY }}
+        
     - name: Build and push Docker image
       uses: docker/build-push-action@v4
       with:
@@ -24,24 +28,36 @@ jobs:
         file: ./Dockerfile
         push: true
         tags: us-central1-docker.pkg.dev/polar-arbor-464909-g3/wisecow-repo/wisecow:latest
+
   deploy:
     runs-on: ubuntu-latest
     needs: build-and-push
     steps:
     - name: Checkout code
       uses: actions/checkout@v3
+      
     - name: Set up kubectl
       uses: azure/setup-kubectl@v3
+      
     - name: Install gcloud SDK and gke-gcloud-auth-plugin
       uses: google-github-actions/setup-gcloud@v1
       with:
         version: 'latest'
         install_components: 'gke-gcloud-auth-plugin'
-    - name: Configure kubeconfig
+        
+    - name: Authenticate to Google Cloud
+      uses: google-github-actions/auth@v1
+      with:
+        credentials_json: ${{ secrets.GCP_SA_KEY }}
+        
+    - name: Get GKE credentials
       run: |
-        echo "${{ secrets.KUBE_CONFIG }}" > kubeconfig.yaml
-        export KUBECONFIG=kubeconfig.yaml
-    - name: Debug kubeconfig
-      run: cat kubeconfig.yaml
+        gcloud container clusters get-credentials wisecow-cluster \
+          --region=us-central1 \
+          --project=polar-arbor-464909-g3
+        
+    - name: Verify kubectl connection
+      run: kubectl cluster-info
+      
     - name: Deploy to Kubernetes
       run: kubectl apply -f wisecow-deployment.yaml -f wisecow-service.yaml --validate=false
