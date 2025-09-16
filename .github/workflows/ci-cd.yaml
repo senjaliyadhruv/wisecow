@@ -24,7 +24,7 @@ jobs:
         file: ./Dockerfile
         push: true
         tags: us-central1-docker.pkg.dev/polar-arbor-464909-g3/wisecow-repo/wisecow:latest
-deploy:
+ deploy:
   runs-on: ubuntu-latest
   needs: build-and-push
   steps:
