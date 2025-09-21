@@ -7,7 +7,7 @@ on:
     branches: [ main ]
 
 env:
-  DOCKER_IMAGE: senjaliyadhruv/wisecow
+  DOCKER_IMAGE: dhruv1204/wisecow
   KUBERNETES_NAMESPACE: default
 
 jobs:
