@@ -10,7 +10,7 @@ env:
   DOCKER_IMAGE: dhruv1204/wisecow
   GCP_PROJECT_ID: polar-arbor-464909-g3
   GKE_CLUSTER_NAME: wisecow-cluster
-  GKE_ZONE: us-central1-a
+  GKE_ZONE: us-central1
 
 jobs:
   build-and-push:
