@@ -1,63 +1,76 @@
-name: CI/CD for Wisecow
+name: CI/CD Pipeline
+
 on:
   push:
-    branches:
-      - main
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  DOCKER_IMAGE: senjaliyadhruv/wisecow
+  KUBERNETES_NAMESPACE: default
 
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
+    
     steps:
     - name: Checkout code
       uses: actions/checkout@v3
-      
+    
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v2
-      
-    - name: Log in to Google Artifact Registry
+    
+    - name: Login to Docker Hub
       uses: docker/login-action@v2
       with:
-        registry: us-central1-docker.pkg.dev
-        username: _json_key
-        password: ${{ secrets.GCP_SA_KEY }}
-        
+        username: ${{ secrets.DOCKER_USERNAME }}
+        password: ${{ secrets.DOCKER_PASSWORD }}
+    
+    - name: Extract metadata
+      id: meta
+      uses: docker/metadata-action@v4
+      with:
+        images: ${{ env.DOCKER_IMAGE }}
+        tags: |
+          type=ref,event=branch
+          type=ref,event=pr
+          type=sha,prefix=sha-
+          type=raw,value=latest,enable={{is_default_branch}}
+    
     - name: Build and push Docker image
       uses: docker/build-push-action@v4
       with:
         context: .
-        file: ./Dockerfile
+        platforms: linux/amd64,linux/arm64
         push: true
-        tags: us-central1-docker.pkg.dev/polar-arbor-464909-g3/wisecow-repo/wisecow:latest
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
 
   deploy:
-    runs-on: ubuntu-latest
     needs: build-and-push
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    
     steps:
     - name: Checkout code
       uses: actions/checkout@v3
-      
+    
     - name: Set up kubectl
       uses: azure/setup-kubectl@v3
-      
-    - name: Install gcloud SDK and gke-gcloud-auth-plugin
-      uses: google-github-actions/setup-gcloud@v1
       with:
         version: 'latest'
-        install_components: 'gke-gcloud-auth-plugin'
-        
-    - name: Authenticate to Google Cloud
-      uses: google-github-actions/auth@v1
-      with:
-        credentials_json: ${{ secrets.GCP_SA_KEY }}
-        
-    - name: Get GKE credentials
+    
+    - name: Configure kubectl
       run: |
-        gcloud container clusters get-credentials wisecow-cluster \
-          --region=us-central1 \
-          --project=polar-arbor-464909-g3
-        
-    - name: Verify kubectl connection
-      run: kubectl cluster-info
-      
+        echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > kubeconfig
+        export KUBECONFIG=kubeconfig
+    
     - name: Deploy to Kubernetes
-      run: kubectl apply -f wisecow-deployment.yaml -f wisecow-service.yaml --validate=false
+      run: |
+        export KUBECONFIG=kubeconfig
+        kubectl apply -f k8s-manifests/
+        kubectl rollout restart deployment/wisecow-deployment -n ${{ env.KUBERNETES_NAMESPACE }}
+        kubectl rollout status deployment/wisecow-deployment -n ${{ env.KUBERNETES_NAMESPACE }}

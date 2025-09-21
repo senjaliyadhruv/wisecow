@@ -1,24 +1,29 @@
-# Use a lightweight Ubuntu base image
+# Use Ubuntu as the base image
 FROM ubuntu:20.04
 
-# Install cowsay and other dependencies
-RUN apt-get update && apt-get install -y \
+# Avoid interactive prompts during package installation
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Update package list and install required packages
+RUN apt-get update && \
+    apt-get install -y \
+    fortune-mod \
     cowsay \
-    bash \
-    && rm -rf /var/lib/apt/lists/*
+    netcat-openbsd && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
-# Copy the Wisecow script and text file to the container
-COPY wisecow.sh /app/wisecow.sh
-COPY wisecow.txt /app/wisecow.txt
-
-# Set working directory
+# Create a working directory
 WORKDIR /app
+
+# Copy the wisecow script to the container
+COPY wisecow.sh .
 
 # Make the script executable
 RUN chmod +x wisecow.sh
 
-# Expose port 4499 (as per Wisecow repo)
+# Expose port 4499
 EXPOSE 4499
 
-# Run the Wisecow script
-CMD ["/app/wisecow.sh"]
+# Run the wisecow application
+CMD ["./wisecow.sh"]
