@@ -27,3 +27,4 @@ Deploy the wisecow application as a k8s app
 2. Github repo with corresponding github action.
 3. Github repo should be kept private and the access should be enabled for following github IDs: nyrahul
 # Updated: Sun Sep 21 07:51:35 AM UTC 2025
+# Pipeline test: Sun Sep 21 07:55:40 AM UTC 2025
